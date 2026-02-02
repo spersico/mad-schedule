@@ -1,0 +1,1 @@
+When implementing changes, check your edits opening the browser at http://127.0.0.1:5500/index.html and verifying that everything works as expected.

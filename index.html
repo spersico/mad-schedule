@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport"
+    content="width=device-width, initial-scale=1.0">
+  <meta name="description"
+    content="Interactive schedule viewer for Mad Cool Festival 2025 in Madrid. Browse set times by day and stage, search artists on YouTube, Spotify, and more.">
+  <link rel="icon"
+    href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>▶️</text></svg>">
+  <title>Horarios y LineUp - Mad Cool Festival © 2026</title>
+  <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+  <link rel="preconnect"
+    href="https://fonts.googleapis.com">
+  <link rel="preconnect"
+    href="https://fonts.gstatic.com"
+    crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Zalando+Sans+Expanded:wght@200..900&display=swap"
+    rel="stylesheet">
+  <style>
+    html {
+      font-family: 'Zalando Sans Expanded', sans-serif;
+      font-size: 14px;
+      font-weight: 400;
+    }
+
+    #eventModal {
+      padding: 0;
+      width: 90%;
+      max-width: 400px;
+      height: auto;
+    }
+
+    #eventModal[open] {
+      display: block;
+      margin: auto;
+      height: fit-content;
+    }
+
+    #eventModal::backdrop {
+      background-color: rgba(0, 0, 0, 0.5);
+    }
+
+    .event-box {
+      border: 2px solid transparent;
+    }
+
+    /* Schedule Layout Classes */
+    .schedule-wrapper {
+      position: relative;
+      padding: 0.5rem;
+    }
+
+    .schedule-header {
+      display: flex;
+      margin-bottom: 1rem;
+    }
+
+    .schedule-header-spacer {
+      width: 110px;
+      flex-shrink: 0;
+    }
+
+    .timeline-header-container {
+      position: relative;
+      flex: 1;
+      height: 40px;
+    }
+
+    .time-label {
+      position: absolute;
+      width: 60px;
+      z-index: 10;
+      font-size: 0.875rem;
+      display: flex;
+      align-items: center;
+      height: 100%;
+    }
+
+    .time-label.first {
+      text-align: left;
+      transform: translateX(0);
+    }
+
+    .time-label.last {
+      text-align: right;
+      right: -0.5rem;
+      left: auto;
+    }
+
+    .time-label.middle {
+      text-align: center;
+      transform: translateX(-50%);
+    }
+
+    .stage-row {
+      display: flex;
+      margin-bottom: 0.5rem;
+    }
+
+    .stage-label {
+      width: 110px;
+      flex-shrink: 0;
+      padding: 0.75rem;
+      padding-right: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      font-weight: 600;
+      color: white;
+      border-radius: 0.375rem 0 0 0.375rem;
+    }
+
+    .timeline-container {
+      position: relative;
+      flex: 1;
+      height: 80px;
+      background-color: #f9fafb;
+      border-radius: 0 0.375rem 0.375rem 0;
+      overflow: hidden;
+      border-left: 1px solid #e5e7eb;
+    }
+
+    .act-box {
+      position: absolute;
+      height: 100%;
+      min-width: 40px;
+      top: 0;
+      box-sizing: border-box;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 2;
+      padding: 0.5rem;
+      border-radius: 0.25rem;
+      font-size: 0.75rem;
+      overflow: hidden;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .act-box .artist-name {
+      font-weight: 600;
+      text-align: center;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+    }
+
+    .act-box .time-info {
+      font-size: 0.75rem;
+      opacity: 0.9;
+      margin-top: 0.25rem;
+      text-align: center;
+    }
+
+    .grid-overlay {
+      position: absolute;
+      top: 45px;
+      left: calc(110px + 0.5rem);
+      right: 0.5rem;
+      overflow: hidden;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .grid-line {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      background-color: rgba(0, 0, 0, 0.1);
+    }
+
+    @media (max-width: 720px) {
+      .stage-label {
+        display: none;
+      }
+
+      .schedule-header-spacer {
+        display: none;
+      }
+
+      .grid-overlay {
+        left: 0.5rem;
+      }
+
+      .timeline-container {
+        border-radius: 0.375rem;
+      }
+
+      .act-box .time-info {
+        display: none;
+      }
+    }
+
+    @media (max-width: 620px) {
+      .time-label:nth-child(even) {
+        display: none;
+      }
+    }
+  </style>
+</head>
+
+<body class="bg-gray-50 p-2">
+  <div class="max-w-7xl mx-auto">
+    <div id="day-tabs"
+      class="flex gap-2 mb-2 border-b border-gray-300"></div>
+    <div id="schedule-container"
+      class="bg-white rounded-lg shadow-sm"></div>
+    <noscript>
+      <div class="mt-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-center text-yellow-800">
+        <p class="font-semibold mb-1">⚠️ JavaScript Required</p>
+        <p class="text-sm">This schedule viewer requires JavaScript to display the interactive timetable. Please enable
+          JavaScript in your browser or visit the <a href="https://madcoolfestival.es/horarios"
+            class="underline">official Mad Cool Festival schedule page</a>.</p>
+      </div>
+    </noscript>
+    <div class="mt-6 p-4 bg-white rounded-lg shadow-sm text-center text-gray-600">
+      <p class="mb-2">Official Mad Cool Info:</p>
+      <div class="flex flex-wrap gap-3 justify-center">
+        <a href="https://madcoolfestival.es/"
+          target="_blank"
+          class="text-blue-600 hover:text-blue-800 hover:underline"
+          aria-label="Visit Mad Cool Festival official website (opens in new tab)">
+          Website
+        </a>
+        <span class="text-gray-400"
+          aria-hidden="true">|</span>
+        <a href="https://madcoolfestival.es/horarios"
+          target="_blank"
+          class="text-blue-600 hover:text-blue-800 hover:underline"
+          aria-label="View official set times (opens in new tab)">
+          Set Times
+        </a>
+        <span class="text-gray-400"
+          aria-hidden="true">|</span>
+        <a href="https://madcoolfestival.es/line-up"
+          target="_blank"
+          class="text-blue-600 hover:text-blue-800 hover:underline"
+          aria-label="View official line-up (opens in new tab)">
+          Line-up
+        </a>
+      </div>
+    </div>
+    <div class="mt-4 p-4 bg-gray-100 rounded-lg text-center text-gray-500 text-sm">
+      <p class="mb-1"><strong>Ultimo Update:</strong> 2026-02-02</p>
+      <p class="mb-1"><strong>Disclaimer:</strong> Sitio NO OFICIAL, ninguna relacion con los organizadores.
+        <br /> Esto es solo un visor de horarios <a href="https://github.com/spersico/mad-schedule">open-source</a>
+        vibecodeado, hecho
+        sin
+        animo
+        de
+        lucro.
+      </p>
+      <p>All rights belong to Mad Cool Festival © 2026 - All Rights Reserved</p>
+      <button id="shareBtn"
+        class="mt-3 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 flex items-center gap-2 cursor-pointer mx-auto"
+        aria-label="Share this schedule">
+        <span>🔗</span>
+        <span>Share/Compartir Link</span>
+      </button>
+    </div>
+    <dialog id="eventModal"
+      class="rounded-lg shadow-lg bg-white"
+      aria-labelledby="modalArtistName"
+      aria-describedby="modalEventTime modalEventStage">
+      <div class="p-6 relative">
+        <button id="modalCloseBtn"
+          class="absolute top-2 right-2 w-8 h-8 flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full cursor-pointer text-xl leading-none"
+          aria-label="Close dialog">
+          ×
+        </button>
+        <div class="mb-4">
+          <h2 id="modalArtistName"
+            class="text-2xl font-bold mb-2"></h2>
+          <div class="flex gap-2 items-center text-gray-600 mb-6"
+            aria-label="Event details">
+            <p id="modalEventTime"
+              class="text-lg"
+              aria-label="Performance time"></p>
+            <span class="text-gray-400"
+              aria-hidden="true">|</span>
+            <p id="modalEventStage"
+              class="text-sm"
+              aria-label="Stage name"></p>
+          </div>
+        </div>
+        <div class="flex flex-col gap-3"
+          role="group"
+          aria-label="Search artist on external platforms">
+          <button id="modalGoogleBtn"
+            class="px-4 py-2 bg-white text-gray-700 border border-gray-300 rounded hover:bg-gray-50 flex items-center gap-2 cursor-pointer"
+            aria-label="Search artist on Google (opens in new tab)">
+            <span aria-hidden="true">🔍</span>
+            <span>Google</span>
+          </button>
+          <button id="modalSpotifyBtn"
+            class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 flex items-center gap-2 cursor-pointer"
+            aria-label="Search artist on Spotify (opens in new tab)">
+            <span aria-hidden="true">🎵</span>
+            <span>Spotify</span>
+          </button>
+          <button id="modalTidalBtn"
+            class="px-4 py-2 bg-black text-white rounded hover:bg-gray-800 flex items-center gap-2 cursor-pointer"
+            aria-label="Search artist on Tidal (opens in new tab)">
+            <span aria-hidden="true">🌊</span>
+            <span>Tidal</span>
+          </button>
+          <button id="modalYouTubeBtn"
+            class="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 flex items-center gap-2 cursor-pointer"
+            aria-label="Search artist on YouTube (opens in new tab)">
+            <span aria-hidden="true">▶️</span>
+            <span>YouTube</span>
+          </button>
+        </div>
+      </div>
+    </dialog>
+    <script type="module">
+      const scheduleData = {
+        days: [
+          {
+            date: '2025-07-08',
+            openingTime: '18:00',
+            closingTime: '01:00',
+            stages: [
+              {
+                id: 'stage-1',
+                name: 'Region of Madrid',
+                acts: [
+                  { artist: 'The Warning', start: '18:55', end: '20:00' },
+                  { artist: 'Wolf Alice', start: '20:20', end: '21:15' },
+                  { artist: 'Foo Fighters', start: '22:00', end: '00:30' },
+                ],
+              },
+              {
+                id: 'stage-2',
+                name: 'Orange',
+                acts: [
+                  { artist: 'Palaye Royale', start: '18:35', end: '19:25' },
+                  { artist: 'The Last Dinner Party', start: '19:35', end: '20:25' },
+                  { artist: 'The War on Drugs', start: '21:00', end: '21:50' },
+                  { artist: 'Moby', start: '22:50', end: '23:40' },
+                ],
+              },
+              {
+                id: 'stage-3',
+                name: 'The Loop Iberdrola',
+                acts: [
+                  { artist: 'Jehnny Beth', start: '18:55', end: '19:45' },
+                  { artist: 'The War and Treaty', start: '20:10', end: '21:15' },
+                  { artist: 'Dogstar', start: '21:35', end: '22:45' },
+                ],
+              },
+              {
+                id: 'stage-4',
+                name: 'Mahou 5 Estrellas',
+                acts: [
+                  { artist: 'Hot Wax', start: '18:35', end: '19:25' },
+                  { artist: 'Villa Nelle', start: '20:10', end: '21:00' },
+                  { artist: 'Mad Mad Mad', start: '21:50', end: '22:40' },
+                ],
+              },
+              {
+                id: 'stage-5',
+                name: 'Mahou Reserva',
+                acts: [
+                  { artist: 'Hot Milk', start: '19:20', end: '20:10' },
+                  { artist: 'Bigger Splash', start: '21:00', end: '21:50' },
+                  { artist: 'Hoo Nine', start: '22:45', end: '23:15' },
+                ],
+              },
+            ],
+          },
+          {
+            date: '2025-07-09',
+            openingTime: '18:00',
+            closingTime: '02:00',
+            stages: [
+              {
+                id: 'stage-1',
+                name: 'Region of Madrid',
+                acts: [
+                  { artist: 'Renée Rapp', start: '19:00', end: '20:00' },
+                  { artist: 'Lorde', start: '20:30', end: '21:45' },
+                  { artist: 'Jennie', start: '22:30', end: '23:40' },
+                  { artist: 'Florence + The Machine', start: '00:30', end: '01:50' },
+                ],
+              },
+              {
+                id: 'stage-2',
+                name: 'Orange',
+                acts: [
+                  { artist: 'CMAT', start: '18:45', end: '19:35' },
+                  { artist: 'Charlie Puth', start: '20:00', end: '20:55' },
+                  { artist: 'Zara Larsson', start: '21:40', end: '22:30' },
+                  { artist: 'Teddy Swims', start: '23:15', end: '00:20' },
+                  { artist: 'The Blaze (DJ Set)', start: '00:55', end: '01:45' },
+                ],
+              },
+              {
+                id: 'stage-3',
+                name: 'The Loop Iberdrola',
+                acts: [
+                  { artist: 'Amrita', start: '19:30', end: '20:15' },
+                  { artist: 'Yung Prado', start: '20:25', end: '21:25' },
+                  { artist: 'Palms Trax', start: '21:40', end: '23:10' },
+                  { artist: 'Boys Noize', start: '23:15', end: '00:50' },
+                ],
+              },
+              {
+                id: 'stage-4',
+                name: 'Mahou 5 Estrellas',
+                acts: [
+                  { artist: 'Chloe Slater', start: '20:10', end: '20:55' },
+                  { artist: 'Sadie Jean', start: '21:50', end: '22:40' },
+                  { artist: 'Florennes', start: '23:35', end: '00:25' },
+                ],
+              },
+              {
+                id: 'stage-5',
+                name: 'Mahou Reserva',
+                acts: [
+                  { artist: 'Zimmer90', start: '19:20', end: '20:10' },
+                  { artist: 'Son Mieux', start: '21:00', end: '21:40' },
+                  { artist: 'La Paloma', start: '22:40', end: '23:15' },
+                  { artist: 'Frost Children', start: '00:30', end: '01:10' },
+                ],
+              },
+            ],
+          },
+          {
+            date: '2025-07-10',
+            openingTime: '19:00',
+            closingTime: '02:00',
+            stages: [
+              {
+                id: 'stage-1',
+                name: 'Region of Madrid',
+                acts: [
+                  { artist: 'Halsey', start: '19:05', end: '20:05' },
+                  { artist: 'Pixies', start: '20:30', end: '21:40' },
+                  { artist: 'Kings of Leon', start: '22:15', end: '23:35' },
+                  { artist: 'Twenty One Pilots', start: '00:25', end: '01:55' },
+                ],
+              },
+              {
+                id: 'stage-2',
+                name: 'Orange',
+                acts: [
+                  { artist: 'Holly Humberstone', start: '20:00', end: '20:50' },
+                  { artist: 'Sigrid', start: '21:30', end: '22:30' },
+                  { artist: 'A Perfect Circle', start: '23:10', end: '00:25' },
+                  { artist: 'Interpol', start: '00:55', end: '01:55' },
+                ],
+              },
+              {
+                id: 'stage-3',
+                name: 'The Loop Iberdrola',
+                acts: [
+                  { artist: 'Maesic', start: '19:00', end: '19:50' },
+                  { artist: 'Weval', start: '19:55', end: '21:05' },
+                  { artist: 'Swimming Paul', start: '21:10', end: '22:00' },
+                  { artist: 'Bunt', start: '22:45', end: '00:10' },
+                  { artist: 'Polo & Pan (DJ Set)', start: '00:20', end: '01:55' },
+                ],
+              },
+              {
+                id: 'stage-4',
+                name: 'Mahou 5 Estrellas',
+                acts: [
+                  { artist: 'Midnight Generation', start: '20:05', end: '20:55' },
+                  { artist: 'Cliffords', start: '21:45', end: '22:35' },
+                  { artist: 'My First Time', start: '23:25', end: '00:15' },
+                ],
+              },
+              {
+                id: 'stage-5',
+                name: 'Mahou Reserva',
+                acts: [
+                  { artist: 'Karen Dio', start: '20:55', end: '21:45' },
+                  { artist: 'Río Kosta', start: '22:35', end: '23:25' },
+                  { artist: 'Usted Señalemelo', start: '00:15', end: '01:00' },
+                ],
+              },
+            ],
+          },
+          {
+            date: '2025-07-11',
+            openingTime: '18:00',
+            closingTime: '02:00',
+            stages: [
+              {
+                id: 'stage-1',
+                name: 'Region of Madrid',
+                acts: [
+                  { artist: 'Jalen Ngonda', start: '18:40', end: '19:30' },
+                  { artist: 'The Black Crowes', start: '20:00', end: '21:30' },
+                  { artist: 'Nick Cave & The Bad Seeds', start: '22:00', end: '23:55' },
+                  { artist: 'Pulp', start: '00:40', end: '01:55' },
+                ],
+              },
+              {
+                id: 'stage-2',
+                name: 'Orange',
+                acts: [
+                  { artist: 'Matt Berninger', start: '19:25', end: '20:35' },
+                  { artist: 'The Vaccines', start: '20:55', end: '21:55' },
+                  { artist: 'Kasabian', start: '22:30', end: '23:40' },
+                  { artist: 'David Byrne', start: '00:05', end: '01:15' },
+                ],
+              },
+              {
+                id: 'stage-3',
+                name: 'The Loop Iberdrola',
+                acts: [
+                  { artist: 'Luxi Villar', start: '18:50', end: '19:55' },
+                  { artist: 'Aerea', start: '20:05', end: '21:30' },
+                  { artist: 'Nina Kraviz', start: '21:40', end: '23:05' },
+                  { artist: 'Richie Hawtin', start: '23:15', end: '00:40' },
+                ],
+              },
+              {
+                id: 'stage-4',
+                name: 'Mahou 5 Estrellas',
+                acts: [
+                  { artist: 'Persia Holder', start: '20:15', end: '21:05' },
+                  { artist: 'The Rey Tons', start: '21:55', end: '22:45' },
+                  { artist: 'Super Model*', start: '23:35', end: '00:25' },
+                ],
+              },
+              {
+                id: 'stage-5',
+                name: 'Mahou Reserva',
+                acts: [
+                  { artist: 'TT SS FU', start: '21:05', end: '21:55' },
+                  { artist: 'Over Pass', start: '22:45', end: '23:35' },
+                ],
+              },
+            ],
+          },
+        ],
+        timeAssumptions: {
+          headerTimeMinutes: 60,
+        },
+      };
+
+      // Configuration
+      const CONFIG = {
+        STAGE_LABEL_WIDTH: 110,
+        ROW_HEIGHT: 80,
+        ROW_MARGIN: 8,
+        HEADER_HEIGHT: 40,
+        MINUTES_PER_HOUR: 60,
+        MINUTES_PER_DAY: 1440
+      };
+
+      // Stage colors mapping
+      const STAGE_COLORS = {
+        'stage-1': { bg: 'bg-blue-500', hover: 'hover:bg-blue-600', text: 'text-white' },
+        'stage-2': { bg: 'bg-orange-500', hover: 'hover:bg-orange-600', text: 'text-white' },
+        'stage-3': { bg: 'bg-green-500', hover: 'hover:bg-green-600', text: 'text-white' },
+        'stage-4': { bg: 'bg-red-500', hover: 'hover:bg-red-600', text: 'text-white' },
+        'stage-5': { bg: 'bg-yellow-500', hover: 'hover:bg-yellow-600', text: 'text-gray-900' }
+      };
+
+      // State
+      let currentDayIndex = 0;
+      let currentModalEvent = null;
+
+      // DOM Elements
+      const elements = {
+        modal: document.getElementById('eventModal'),
+        tabsContainer: document.getElementById('day-tabs'),
+        scheduleContainer: document.getElementById('schedule-container'),
+        modalArtistName: document.getElementById('modalArtistName'),
+        modalEventTime: document.getElementById('modalEventTime'),
+        modalEventStage: document.getElementById('modalEventStage'),
+        modalCloseBtn: document.getElementById('modalCloseBtn'),
+        modalYouTubeBtn: document.getElementById('modalYouTubeBtn'),
+        modalGoogleBtn: document.getElementById('modalGoogleBtn'),
+        modalSpotifyBtn: document.getElementById('modalSpotifyBtn'),
+        modalTidalBtn: document.getElementById('modalTidalBtn'),
+        shareBtn: document.getElementById('shareBtn')
+      };
+
+      // Time Utilities
+      const TimeUtils = {
+        toMinutes(timeStr) {
+          const [hours, mins] = timeStr.split(':').map(Number);
+          return hours * CONFIG.MINUTES_PER_HOUR + mins;
+        },
+
+        toTime(minutes) {
+          const hours = Math.floor(minutes / CONFIG.MINUTES_PER_HOUR) % 24;
+          const mins = minutes % CONFIG.MINUTES_PER_HOUR;
+          return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`;
+        },
+
+        getTimelineRange(openingTime, closingTime) {
+          const openingMin = this.toMinutes(openingTime);
+          const closingMin = this.toMinutes(closingTime);
+          const timelineEnd = closingMin < openingMin
+            ? closingMin + CONFIG.MINUTES_PER_DAY
+            : closingMin;
+          return {
+            start: openingMin,
+            end: timelineEnd,
+            duration: timelineEnd - openingMin
+          };
+        },
+
+        normalizeTime(timeMin, timelineStart) {
+          return timeMin < timelineStart ? timeMin + CONFIG.MINUTES_PER_DAY : timeMin;
+        }
+      };
+
+      // Position Calculator
+      const PositionCalculator = {
+        compute(startStr, endStr, openingTime, closingTime) {
+          const range = TimeUtils.getTimelineRange(openingTime, closingTime);
+
+          let startMin = TimeUtils.toMinutes(startStr);
+          let endMin = TimeUtils.toMinutes(endStr);
+
+          startMin = TimeUtils.normalizeTime(startMin, range.start);
+          endMin = TimeUtils.normalizeTime(endMin, startMin);
+
+          const leftOffset = startMin - range.start;
+          const duration = endMin - startMin;
+
+          return {
+            leftPercent: (leftOffset / range.duration) * 100,
+            widthPercent: (duration / range.duration) * 100
+          };
+        },
+
+        getTimeLabels(openingMin, timelineEnd) {
+          const labels = [];
+          for (let min = openingMin; min <= timelineEnd; min += CONFIG.MINUTES_PER_HOUR) {
+            labels.push(min);
+          }
+          return labels;
+        },
+
+        getPercent(minutes, openingMin, timelineDuration) {
+          return ((minutes - openingMin) / timelineDuration) * 100;
+        }
+      };
+
+      // Element Factory
+      const ElementFactory = {
+        create(tag, classes = '', text = '') {
+          const el = document.createElement(tag);
+          if (classes) el.className = classes;
+          if (text) el.textContent = text;
+          return el;
+        },
+
+        createButton(id, icon, text, colorClasses) {
+          const btn = this.create('button', `${colorClasses} px-4 py-2 rounded flex items-center gap-2 cursor-pointer`, '');
+          btn.id = id;
+          btn.innerHTML = `<span>${icon}</span><span>${text}</span>`;
+          return btn;
+        },
+
+        createStageLabel(stage) {
+          const colors = STAGE_COLORS[stage.id];
+          const label = this.create('div', `stage-label ${colors.bg}`, stage.name);
+          return label;
+        },
+
+        createTimeLabel(minutes, index, total, openingMin, timelineDuration) {
+          const percent = PositionCalculator.getPercent(minutes, openingMin, timelineDuration);
+          const isFirst = index === 0;
+          const isLast = index === total - 1;
+
+          let positionClass = 'middle';
+          if (isFirst) positionClass = 'first';
+          if (isLast) positionClass = 'last';
+
+          const label = this.create('div', `time-label ${positionClass} font-semibold text-gray-600`, TimeUtils.toTime(minutes));
+
+          if (isLast) {
+            label.style.right = '-0.5rem';
+          } else {
+            label.style.left = `${percent}%`;
+          }
+
+          return label;
+        },
+
+        createActBox(act, stage, day, dayIndex) {
+          const { leftPercent, widthPercent } = PositionCalculator.compute(
+            act.start, act.end, day.openingTime, day.closingTime
+          );
+
+          const colors = STAGE_COLORS[stage.id];
+          const box = this.create('div', `act-box event-box ${colors.bg} ${colors.hover} ${colors.text}`);
+
+          box.style.left = `${leftPercent}%`;
+          box.style.width = `${widthPercent}%`;
+          box.setAttribute('role', 'button');
+          box.setAttribute('tabindex', '0');
+          box.setAttribute('aria-label', `${act.artist} performing at ${act.start} on ${stage.name}`);
+
+          const artist = this.create('div', 'artist-name', act.artist.toUpperCase());
+          artist.setAttribute('aria-hidden', 'true');
+          const time = this.create('div', 'time-info', act.start);
+          time.setAttribute('aria-hidden', 'true');
+
+          box.appendChild(artist);
+          box.appendChild(time);
+
+          const handleActivation = () => openModal(act, stage, day);
+          box.addEventListener('click', handleActivation);
+          box.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              handleActivation();
+            }
+          });
+
+          return box;
+        },
+
+        createGridLine(minutes, openingMin, timelineDuration) {
+          const percent = PositionCalculator.getPercent(minutes, openingMin, timelineDuration);
+          const line = this.create('div', 'grid-line');
+          line.style.left = `${percent}%`;
+          return line;
+        }
+      };
+
+      // Render Functions
+      const Renderer = {
+        tabs() {
+          elements.tabsContainer.innerHTML = '';
+
+          const dayFormatter = new Intl.DateTimeFormat(undefined, { weekday: 'long' });
+
+          elements.tabsContainer.setAttribute('role', 'tablist');
+          elements.tabsContainer.setAttribute('aria-label', 'Festival days');
+
+          scheduleData.days.forEach((day, index) => {
+            const date = new Date(day.date);
+            const dayName = dayFormatter.format(date);
+            const tab = ElementFactory.create('button',
+              `px-4 py-2 font-medium transition-colors cursor-pointer ${index === currentDayIndex
+                ? 'text-blue-600 border-b-2 border-blue-600'
+                : 'text-gray-600 hover:text-gray-900'
+              }`,
+              dayName
+            );
+
+            tab.setAttribute('role', 'tab');
+            tab.setAttribute('aria-selected', index === currentDayIndex ? 'true' : 'false');
+            tab.setAttribute('aria-controls', `day-panel-${index}`);
+            tab.setAttribute('id', `day-tab-${index}`);
+            tab.setAttribute('tabindex', index === currentDayIndex ? '0' : '-1');
+
+            tab.addEventListener('click', () => {
+              currentDayIndex = index;
+              this.tabs();
+              this.schedule();
+            });
+
+            // Keyboard navigation for tabs
+            tab.addEventListener('keydown', (e) => {
+              let newIndex = currentDayIndex;
+              if (e.key === 'ArrowLeft') {
+                newIndex = currentDayIndex > 0 ? currentDayIndex - 1 : scheduleData.days.length - 1;
+              } else if (e.key === 'ArrowRight') {
+                newIndex = currentDayIndex < scheduleData.days.length - 1 ? currentDayIndex + 1 : 0;
+              } else if (e.key === 'Home') {
+                newIndex = 0;
+              } else if (e.key === 'End') {
+                newIndex = scheduleData.days.length - 1;
+              }
+
+              if (newIndex !== currentDayIndex) {
+                e.preventDefault();
+                currentDayIndex = newIndex;
+                this.tabs();
+                this.schedule();
+                // Focus the new active tab
+                const newTab = document.getElementById(`day-tab-${newIndex}`);
+                if (newTab) newTab.focus();
+              }
+            });
+
+            elements.tabsContainer.appendChild(tab);
+          });
+        },
+
+        schedule() {
+          const day = scheduleData.days[currentDayIndex];
+          const range = TimeUtils.getTimelineRange(day.openingTime, day.closingTime);
+          const wrapper = this.createWrapper(day, range);
+          elements.scheduleContainer.innerHTML = '';
+          elements.scheduleContainer.setAttribute('role', 'tabpanel');
+          elements.scheduleContainer.setAttribute('id', `day-panel-${currentDayIndex}`);
+          elements.scheduleContainer.setAttribute('aria-labelledby', `day-tab-${currentDayIndex}`);
+          elements.scheduleContainer.appendChild(wrapper);
+        },
+
+        createWrapper(day, range) {
+          const wrapper = ElementFactory.create('div', 'schedule-wrapper');
+
+          const header = this.createHeader(range);
+          const gridOverlay = this.createGridOverlay(day, range);
+
+          wrapper.appendChild(header);
+
+          day.stages.forEach(stage => {
+            const row = this.createStageRow(stage, day);
+            wrapper.appendChild(row);
+          });
+
+          wrapper.appendChild(gridOverlay);
+
+          return wrapper;
+        },
+
+        createHeader(range) {
+          const header = ElementFactory.create('div', 'schedule-header');
+          const spacer = ElementFactory.create('div', 'schedule-header-spacer');
+          const timeContainer = ElementFactory.create('div', 'timeline-header-container');
+
+          const labels = PositionCalculator.getTimeLabels(range.start, range.end);
+
+          labels.forEach((min, index) => {
+            const label = ElementFactory.createTimeLabel(
+              min, index, labels.length, range.start, range.duration
+            );
+            timeContainer.appendChild(label);
+          });
+
+          header.appendChild(spacer);
+          header.appendChild(timeContainer);
+
+          return header;
+        },
+
+        createStageRow(stage, day) {
+          const row = ElementFactory.create('div', 'stage-row');
+          const label = ElementFactory.createStageLabel(stage);
+          label.setAttribute('aria-hidden', 'true');
+          const timeline = ElementFactory.create('div', 'timeline-container');
+
+          stage.acts.forEach(act => {
+            const actBox = ElementFactory.createActBox(act, stage, day, currentDayIndex);
+            timeline.appendChild(actBox);
+          });
+
+          row.appendChild(label);
+          row.appendChild(timeline);
+
+          return row;
+        },
+
+        createGridOverlay(day, range) {
+          const numStages = day.stages.length;
+          const totalHeight = numStages * (CONFIG.ROW_HEIGHT + CONFIG.ROW_MARGIN) - CONFIG.ROW_MARGIN;
+
+          const overlay = ElementFactory.create('div', 'grid-overlay');
+          overlay.style.height = `${totalHeight}px`;
+
+          const labels = PositionCalculator.getTimeLabels(range.start, range.end);
+
+          labels.forEach(min => {
+            const line = ElementFactory.createGridLine(min, range.start, range.duration);
+            overlay.appendChild(line);
+          });
+
+          return overlay;
+        }
+      };
+
+      // Modal Functions
+      let lastFocusedElement = null;
+
+      function getFocusableElements() {
+        return Array.from(elements.modal.querySelectorAll(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        )).filter(el => !el.disabled && el.offsetParent !== null);
+      }
+
+      function trapFocus(e) {
+        if (e.key !== 'Tab') return;
+
+        const focusableElements = getFocusableElements();
+        const firstFocusable = focusableElements[0];
+        const lastFocusable = focusableElements[focusableElements.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === firstFocusable) {
+            e.preventDefault();
+            lastFocusable.focus();
+          }
+        } else {
+          if (document.activeElement === lastFocusable) {
+            e.preventDefault();
+            firstFocusable.focus();
+          }
+        }
+      }
+
+      function openModal(act, stage, day) {
+        lastFocusedElement = document.activeElement;
+        currentModalEvent = {
+          dayIndex: currentDayIndex,
+          artist: act.artist,
+          stageId: stage.id
+        };
+
+        elements.modalArtistName.textContent = act.artist;
+        elements.modalEventTime.textContent = `${act.start} - ${act.end}`;
+        elements.modalEventStage.textContent = `Stage: ${stage.name}`;
+
+        elements.modal.showModal();
+        elements.modalCloseBtn.focus();
+        elements.modal.addEventListener('keydown', trapFocus);
+      }
+
+      function closeModal() {
+        elements.modal.removeEventListener('keydown', trapFocus);
+        elements.modal.close();
+        if (lastFocusedElement) {
+          lastFocusedElement.focus();
+        }
+      }
+
+      function openExternalLink(baseUrl, queryParam = 'q') {
+        if (!currentModalEvent) return;
+        const encodedName = encodeURIComponent(currentModalEvent.artist);
+        const url = `${baseUrl}?${queryParam}=${encodedName}`;
+        window.open(url, '_blank');
+      }
+
+      // Event Handlers
+      function setupEventListeners() {
+        // Modal close handlers
+        elements.modalCloseBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          closeModal();
+        });
+
+        elements.modal.addEventListener('click', (e) => {
+          if (e.target === elements.modal) closeModal();
+        });
+
+        // External link handlers
+        elements.modalYouTubeBtn.addEventListener('click', () => {
+          openExternalLink('https://www.youtube.com/results', 'search_query');
+        });
+
+        elements.modalGoogleBtn.addEventListener('click', () => {
+          openExternalLink('https://www.google.com/search');
+        });
+
+        elements.modalSpotifyBtn.addEventListener('click', () => {
+          if (currentModalEvent) {
+            const encodedName = encodeURIComponent(currentModalEvent.artist);
+            window.open(`https://open.spotify.com/search/${encodedName}`, '_blank');
+          }
+        });
+
+        elements.modalTidalBtn.addEventListener('click', () => {
+          openExternalLink('https://tidal.com/search');
+        });
+
+        // Share button handler
+        elements.shareBtn.addEventListener('click', async () => {
+          const shareData = {
+            title: 'Mad Cool Festival Schedule',
+            text: 'Check out the Mad Cool Festival 2025 schedule!',
+            url: window.location.href
+          };
+
+          try {
+            if (navigator.share) {
+              await navigator.share(shareData);
+            } else if (navigator.clipboard) {
+              await navigator.clipboard.writeText(window.location.href);
+              alert('Link copied to clipboard!');
+            } else {
+              // Fallback for older browsers
+              const textArea = document.createElement('textarea');
+              textArea.value = window.location.href;
+              document.body.appendChild(textArea);
+              textArea.select();
+              document.execCommand('copy');
+              document.body.removeChild(textArea);
+              alert('Link copied to clipboard!');
+            }
+          } catch (err) {
+            console.error('Error sharing:', err);
+          }
+        });
+      }
+
+      // Initialization
+      function init() {
+        setupEventListeners();
+        Renderer.tabs();
+        Renderer.schedule();
+      }
+
+      // Start the app
+      init();
+    </script>
+</body>
+
+</html>
