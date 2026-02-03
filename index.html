@@ -323,6 +323,7 @@
         days: [
           {
             date: '2025-07-08',
+            date: '2026-07-08',
             openingTime: '18:00',
             closingTime: '01:00',
             stages: [
@@ -375,7 +376,8 @@
             ],
           },
           {
-            date: '2025-07-09',
+            date: '2025-07-09T17:00:00',
+            date: '2026-07-09',
             openingTime: '18:00',
             closingTime: '02:00',
             stages: [
@@ -432,7 +434,8 @@
             ],
           },
           {
-            date: '2025-07-10',
+            date: '2025-07-10T17:00:00',
+            date: '2026-07-10',
             openingTime: '19:00',
             closingTime: '02:00',
             stages: [
@@ -488,7 +491,8 @@
             ],
           },
           {
-            date: '2025-07-11',
+            date: '2025-07-11T17:00:00',
+            date: '2026-07-11',
             openingTime: '18:00',
             closingTime: '02:00',
             stages: [
@@ -739,14 +743,15 @@
         tabs() {
           elements.tabsContainer.innerHTML = '';
 
-          const dayFormatter = new Intl.DateTimeFormat(undefined, { weekday: 'long' });
+          const dayFormatter = new Intl.DateTimeFormat(navigator.language, { weekday: 'long' });
 
           elements.tabsContainer.setAttribute('role', 'tablist');
           elements.tabsContainer.setAttribute('aria-label', 'Festival days');
 
           scheduleData.days.forEach((day, index) => {
             const date = new Date(day.date);
-            const dayName = dayFormatter.format(date);
+            let dayName = dayFormatter.format(date);
+            dayName = dayName.charAt(0).toUpperCase() + dayName.slice(1);
             const tab = ElementFactory.create('button',
               `px-4 py-2 font-medium transition-colors cursor-pointer ${index === currentDayIndex
                 ? 'text-blue-600 border-b-2 border-blue-600'
